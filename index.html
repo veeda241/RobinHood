@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indian Tax Authority</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Ashoka_Chakra.svg/1200px-Ashoka_Chakra.svg.png" alt="Ashoka Chakra">
+            <h1>Indian Tax Authority</h1>
+        </div>
+    </header>
+    <div class="container">
+        <h2>Users</h2>
+        <table id="users-table">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Declared Income</th>
+                    <th>Observed Transactions</th>
+                    <th>Income Source</th>
+                    <th>Tax Paid</th>
+                    <th>Flagged</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+
+        <div class="form-container">
+            <h2>Add User</h2>
+            <input type="text" id="user_id" placeholder="User ID">
+            <input type="number" id="declared_income" placeholder="Declared Income">
+            <input type="text" id="observed_transactions" placeholder="Observed Transactions">
+            <input type="text" id="income_source" placeholder="Income Source">
+            <button class="btn" onclick="addUser()">Add User</button>
+        </div>
+
+        <div class="form-container">
+            <h2>Calculate Tax</h2>
+            <input type="number" id="income" placeholder="Income">
+            <button class="btn" onclick="calculateTax()">Calculate Tax</button>
+            <p>Tax: <span id="tax-amount"></span></p>
+        </div>
+
+        <div class="form-container">
+            <h2>Process Payment</h2>
+            <input type="text" id="payment_user_id" placeholder="User ID">
+            <input type="number" id="payment_amount" placeholder="Amount">
+            <button class="btn" onclick="processPayment()">Process Payment</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
