@@ -3,54 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CivTax - Indian Tax Authority</title>
+    <title>RobinHood AI | Smart Tax Compliance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <header>
-        <div class="logo">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Ashoka_Chakra.svg/1200px-Ashoka_Chakra.svg.png" alt="Ashoka Chakra">
-            <h1>CivTax</h1>
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                </div>
+                <div>
+                    <h1>RobinHood AI</h1>
+                    <span>Tax Compliance Intelligence</span>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="#" class="nav-link active" onclick="showTab('dashboard')">Dashboard</a>
+                <a href="#" class="nav-link" onclick="showTab('calculator')">Calculator</a>
+                <a href="#" class="nav-link" onclick="showTab('notices')">Notices</a>
+                <a href="#" class="nav-link" onclick="showTab('admin')">Admin</a>
+            </nav>
         </div>
     </header>
-    <div class="container">
-        <h2>Tax Officer Dashboard</h2>
-        <table id="users-table">
-            <thead>
-                <tr>
-                    <th>User ID</th>
-                    <th>Declared Income</th>
-                    <th>Tax Paid</th>
-                    <th>Expected Tax</th>
-                    <th>Compliance Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
 
-        <div class="form-container">
-            <h2>Add New Taxpayer</h2>
-            <input type="text" id="user_id" placeholder="User ID">
-            <input type="number" id="declared_income" placeholder="Declared Income">
-            <button class="btn" onclick="addUser()">Add User</button>
-        </div>
+    <main class="container">
+        <section id="dashboard" class="tab-content fade-in">
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-icon primary">📊</div><div class="stat-value" id="total-users">0</div><div class="stat-label">Total Taxpayers</div></div>
+                <div class="stat-card success"><div class="stat-icon success">✓</div><div class="stat-value" id="compliant-users">0</div><div class="stat-label">Compliant</div></div>
+                <div class="stat-card warning"><div class="stat-icon warning">⚠</div><div class="stat-value" id="underpaid-users">0</div><div class="stat-label">Underpaid</div></div>
+                <div class="stat-card danger"><div class="stat-icon danger">🚨</div><div class="stat-value" id="flagged-users">0</div><div class="stat-label">Flagged</div></div>
+            </div>
+            <div class="table-container">
+                <div class="table-header"><h2>📋 Taxpayer Registry</h2><input type="text" class="search-input" id="search-users" placeholder="Search..."></div>
+                <table id="users-table"><thead><tr><th>User ID</th><th>Income</th><th>Tax Paid</th><th>Expected</th><th>Due</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
+            </div>
+        </section>
 
-        <div class="form-container">
-            <h2>Citizen Portal</h2>
-            <input type="number" id="income" placeholder="Enter Your Salary">
-            <button class="btn" onclick="calculateTax()">Calculate Tax</button>
-            <p>Your Estimated Tax: <span id="tax-amount"></span></p>
-        </div>
+        <section id="calculator" class="tab-content" style="display:none;">
+            <h2 class="section-title">Tax Calculator</h2>
+            <div class="form-grid">
+                <div class="form-card citizen">
+                    <h2>🧮 Calculate Your Tax</h2>
+                    <p>Enter annual income to estimate tax liability</p>
+                    <div class="form-group"><label class="form-label">Annual Income (₹)</label><input type="number" class="form-input" id="income" placeholder="1200000"></div>
+                    <button class="btn btn-success" onclick="calculateTax()" style="width:100%">Calculate Tax 🚀</button>
+                    <div class="result-display" id="tax-result" style="display:none;"><div class="result-label">Estimated Tax</div><div class="result-value" id="tax-amount">₹0</div><div class="result-breakdown" id="tax-breakdown"></div></div>
+                </div>
+                <div class="form-card">
+                    <h2>📊 Tax Slabs 2024-25</h2>
+                    <div class="slab-item"><span class="slab-range">Up to ₹3L</span><span class="slab-rate nil">NIL</span></div>
+                    <div class="slab-item"><span class="slab-range">₹3L - ₹6L</span><span class="slab-rate">5%</span></div>
+                    <div class="slab-item"><span class="slab-range">₹6L - ₹9L</span><span class="slab-rate">10%</span></div>
+                    <div class="slab-item"><span class="slab-range">₹9L - ₹12L</span><span class="slab-rate">15%</span></div>
+                    <div class="slab-item"><span class="slab-range">₹12L - ₹15L</span><span class="slab-rate">20%</span></div>
+                    <div class="slab-item"><span class="slab-range">Above ₹15L</span><span class="slab-rate">30%</span></div>
+                </div>
+            </div>
+        </section>
 
-        <div class="form-container">
-            <h2>Simulation Mode</h2>
-            <input type="number" id="simulated_income" placeholder="Enter Hypothetical Salary">
-            <button class="btn" onclick="calculateSimulatedTax()">See Projected Tax</button>
-            <p>Projected Tax Obligation: <span id="simulated-tax-amount"></span></p>
-        </div>
-    </div>
+        <section id="notices" class="tab-content" style="display:none;">
+            <h2 class="section-title">Tax Notices</h2>
+            <div class="notices-container" id="notices-list"></div>
+            <div class="form-card notice" style="max-width:600px;">
+                <h2>📧 Send Tax Notice</h2>
+                <div class="form-group"><label class="form-label">Taxpayer ID</label><input type="text" class="form-input" id="notice-user-id" placeholder="User ID"></div>
+                <div class="form-group"><label class="form-label">Notice Type</label><select class="form-select" id="notice-type"><option value="reminder">Reminder</option><option value="warning">Warning</option><option value="final">Final Notice</option><option value="penalty">Penalty</option></select></div>
+                <button class="btn btn-danger" onclick="sendNotice()" style="width:100%">Send Notice 📨</button>
+            </div>
+        </section>
+
+        <section id="admin" class="tab-content" style="display:none;">
+            <h2 class="section-title">Administration</h2>
+            <div class="form-grid">
+                <div class="form-card admin">
+                    <h2>➕ Add Taxpayer</h2>
+                    <div class="form-group"><label class="form-label">Taxpayer ID</label><input type="text" class="form-input" id="user_id" placeholder="TXP12345"></div>
+                    <div class="form-group"><label class="form-label">Declared Income (₹)</label><input type="number" class="form-input" id="declared_income" placeholder="800000"></div>
+                    <div class="form-group"><label class="form-label">Tax Paid (₹)</label><input type="number" class="form-input" id="tax_paid" placeholder="25000"></div>
+                    <button class="btn btn-primary" onclick="addUser()" style="width:100%">Register ✓</button>
+                </div>
+                <div class="form-card">
+                    <h2>💳 Process Payment</h2>
+                    <div class="form-group"><label class="form-label">Taxpayer ID</label><input type="text" class="form-input" id="payment-user-id" placeholder="User ID"></div>
+                    <div class="form-group"><label class="form-label">Amount (₹)</label><input type="number" class="form-input" id="payment-amount" placeholder="50000"></div>
+                    <button class="btn btn-success" onclick="processPayment()" style="width:100%">Process 💰</button>
+                </div>
+            </div>
+            <div class="form-card" style="margin-top:30px;">
+                <h2>⚡ Quick Actions</h2>
+                <div style="display:flex;gap:15px;flex-wrap:wrap;margin-top:20px;">
+                    <button class="btn btn-primary" onclick="refreshData()">🔄 Refresh</button>
+                    <button class="btn btn-warning" onclick="checkAllCompliance()">📋 Check Compliance</button>
+                    <button class="btn btn-danger" onclick="sendBulkReminders()">📧 Bulk Reminders</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer><div class="footer-content"><p class="footer-text">© 2024 RobinHood AI - Tax Compliance System</p></div></footer>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
