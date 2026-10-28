@@ -53,11 +53,18 @@ const DashboardStats: React.FC = () => {
       icon: <Search className="h-5 w-5" />,
       color: 'border-l-red-500'
     },
+    {
+      id: 'high_risk',
+      title: 'High Risk (ML ≥ 70)',
+      value: (stats.high_risk ?? 0).toString(),
+      icon: <AlertCircle className="h-5 w-5" />,
+      color: 'border-l-purple-500'
+    },
   ];
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {statItems.map((stat) => (
           <Card key={stat.id} className={`border-l-4 ${stat.color}`}>
             <CardContent className="p-4">
@@ -81,6 +88,7 @@ const DashboardStats: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-emerald-700">Total Tax Collected</p>
               <h2 className="text-3xl font-bold text-emerald-900">₹{stats.total_paid.toLocaleString()}</h2>
+              <p className="text-xs text-emerald-700 mt-1">{stats.collection_rate ?? 0}% of statutory demand</p>
             </div>
             <DollarSign className="h-10 w-10 text-emerald-600 opacity-20" />
           </CardContent>

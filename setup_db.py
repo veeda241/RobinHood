@@ -1,124 +1,78 @@
 """
-RobinHood AI - Database Reset Script
-This recreates the users table with the correct structure
+RobinHood AI - Database Seeder
+
+Two modes, chosen automatically:
+  * Supabase configured -> seeds the live `taxpayers` table through the model
+    layer (so PII is encrypted and each insert is audit-logged). Run
+    supabase_schema.sql in the Supabase SQL Editor first.
+  * Supabase NOT configured (offline demo / CI) -> seeds the in-memory store so
+    the dashboard and CLI are immediately usable.
+
+Usage:  python setup_db.py [--reset]
 """
 
-import mysql.connector
-from mysql.connector import errorcode
+import sys
 
-DB_NAME = 'robinhood_db'
+import db
+from models import Taxpayer
 
-def setup_database():
-    try:
-        # Connect to MySQL
-        cnx = mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password='Vyasxdxd@17'
+# name, gross_income, tax_paid, deductions_total, pan, assets_value
+SAMPLE = [
+    ("Asha Rao",      500000,  10000, 150000, "ABCDE1234F", 1200000),
+    ("Bilal Khan",    800000,  25000, 150000, "BCDEF2345G", 2100000),
+    ("Chaya Nair",   1200000,  45000, 175000, "CDEFG3456H", 5400000),
+    ("Deep Varma",   1500000,  90000, 200000, "DEFGH4567J", 8800000),
+    ("Elena D'Souza",2000000, 100000, 150000, "EFGHI5678K", 15000000),
+    ("Farid Sheikh",  350000,      0,  50000, "FGHIJ6789L", 400000),
+    ("Gita Iyer",     950000,  55000, 150000, "GHIJK7890M", 3300000),
+    ("Harun Meher",   600000,  15000, 100000, "HIJKL8901N", 900000),
+]
+
+
+def _seed():
+    for i, (name, income, paid, ded, pan, assets) in enumerate(SAMPLE):
+        user_id = f"TXP{i + 1:03d}"
+        if Taxpayer.get_by_id(user_id):
+            continue
+        Taxpayer.create(
+            name=name, gross_income=income, tax_paid=paid,
+            deductions={"80C": min(ded, 150000)}, user_id=user_id,
+            pan=pan, assets_value=assets, actor="seeder",
         )
-        cursor = cnx.cursor()
-        
-        # Create database if not exists
-        try:
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}")
-            print(f"Database '{DB_NAME}' ready.")
-        except mysql.connector.Error as err:
-            print(f"Error creating database: {err}")
-            return
-        
-        # Use the database
-        cursor.execute(f"USE {DB_NAME}")
-        
-        # Drop existing table and recreate
-        print("Dropping existing users table if exists...")
-        cursor.execute("DROP TABLE IF EXISTS notices")
-        cursor.execute("DROP TABLE IF EXISTS payments")
-        cursor.execute("DROP TABLE IF EXISTS users")
-        
-        # Create users table with correct structure
-        print("Creating users table...")
-        cursor.execute("""
-            CREATE TABLE users (
-                user_id VARCHAR(50) PRIMARY KEY,
-                declared_income DECIMAL(15, 2) NOT NULL DEFAULT 0,
-                tax_paid DECIMAL(15, 2) NOT NULL DEFAULT 0,
-                flagged BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            )
-        """)
-        print("Users table created successfully!")
-        
-        # Create notices table
-        print("Creating notices table...")
-        cursor.execute("""
-            CREATE TABLE notices (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id VARCHAR(50) NOT NULL,
-                notice_type ENUM('reminder', 'warning', 'final', 'penalty') NOT NULL,
-                amount_due DECIMAL(15, 2) NOT NULL,
-                message TEXT,
-                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(user_id)
-            )
-        """)
-        print("Notices table created successfully!")
-        
-        # Create payments table
-        print("Creating payments table...")
-        cursor.execute("""
-            CREATE TABLE payments (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id VARCHAR(50) NOT NULL,
-                amount DECIMAL(15, 2) NOT NULL,
-                reference_no VARCHAR(100),
-                payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(user_id)
-            )
-        """)
-        print("Payments table created successfully!")
-        
-        # Insert sample data
-        print("\nInserting sample data...")
-        sample_users = [
-            ('TXP001', 500000, 10000, False),
-            ('TXP002', 800000, 25000, False),
-            ('TXP003', 1200000, 45000, False),
-            ('TXP004', 1500000, 90000, False),
-            ('TXP005', 2000000, 100000, True),
-            ('TXP006', 350000, 0, False),
-            ('TXP007', 950000, 55000, False),
-            ('TXP008', 600000, 15000, False),
-        ]
-        
-        for user in sample_users:
-            cursor.execute(
-                "INSERT INTO users (user_id, declared_income, tax_paid, flagged) VALUES (%s, %s, %s, %s)",
-                user
-            )
-            print(f"  Added user: {user[0]}")
-        
-        cnx.commit()
-        print("\n" + "="*50)
-        print("Database setup complete!")
-        print("="*50)
-        
-        # Show summary
-        cursor.execute("SELECT COUNT(*) FROM users")
-        count = cursor.fetchone()[0]
-        print(f"\nTotal users in database: {count}")
-        
-        cursor.close()
-        cnx.close()
-        
-    except mysql.connector.Error as err:
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("Error: Wrong username or password")
-        else:
-            print(f"Error: {err}")
+        print(f"  seeded {user_id} ({name})")
 
-if __name__ == '__main__':
-    print("="*50)
-    print("RobinHood AI - Database Setup")
-    print("="*50 + "\n")
-    setup_database()
+
+def seed_demo_store():
+    """Populate the in-memory offline demo store (idempotent)."""
+    if not db.demo_mode():
+        return
+    if db.select_all("taxpayers"):
+        return
+    print("Offline demo mode detected (no Supabase) - seeding in-memory store.")
+    _seed()
+
+
+def seed_supabase(reset: bool = False):
+    if reset:
+        client = db.get_supabase_client()
+        # Delete all rows via an always-true filter. Ledger is append-only at the
+        # DB tier (UPDATE/DELETE blocked), so a full reset must be done in the
+        # SQL Editor, not here; we only clear notices + taxpayers.
+        client.table("compliance_notices").delete().neq("user_id", "").execute()
+        client.table("taxpayers").delete().neq("user_id", "").execute()
+        print("Cleared existing notices and taxpayers (ledger is append-only).")
+    _seed()
+
+
+if __name__ == "__main__":
+    reset = "--reset" in sys.argv
+    print("=" * 54)
+    print("RobinHood AI - Database Seeder")
+    print("=" * 54)
+    if db.demo_mode():
+        seed_demo_store()
+        print(f"\nIn-memory store now holds {len(db.select_all('taxpayers'))} taxpayers.")
+        print("Set SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in .env to seed real Supabase.")
+    else:
+        seed_supabase(reset=reset)
+        print(f"\nSupabase now holds {len(db.select_all('taxpayers'))} taxpayers.")

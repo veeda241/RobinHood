@@ -1,0 +1,25 @@
+# Secrets — never commit
+.env
+.env.local
+frontend/.env
+frontend/.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Browser-verification screenshots (local artifacts)
+/step*.png
+/verify_*.png

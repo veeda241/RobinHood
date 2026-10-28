@@ -69,6 +69,16 @@ const UserRegistry: React.FC = () => {
         },
     });
 
+    const noticeMutation = useMutation({
+        mutationFn: ({ userId, type }: { userId: string; type: string }) => sendNotice(userId, type),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['auditTrail'] });
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            toast.success('Notice persisted to compliance_notices + audit ledger');
+        },
+        onError: (err: Error) => toast.error(err.message),
+    });
+
     const handleAddUser = (e: React.FormEvent) => {
         e.preventDefault();
         addUserMutation.mutate({
@@ -84,10 +94,12 @@ const UserRegistry: React.FC = () => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'Compliant':
+            case 'COMPLIANT':
                 return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Compliant</Badge>;
-            case 'Underpaid':
+            case 'UNDERPAID':
                 return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"><Clock className="w-3 h-3 mr-1" /> Underpaid</Badge>;
+            case 'FLAGGED_FOR_REVIEW':
+                return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200"><AlertTriangle className="w-3 h-3 mr-1" /> Flagged</Badge>;
             default:
                 return <Badge variant="outline">{status}</Badge>;
         }
@@ -157,6 +169,8 @@ const UserRegistry: React.FC = () => {
                                     <TableHead>Income</TableHead>
                                     <TableHead>Expected</TableHead>
                                     <TableHead>Paid</TableHead>
+                                    <TableHead>Risk</TableHead>
+                                    <TableHead>Regime</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -173,6 +187,12 @@ const UserRegistry: React.FC = () => {
                                         <TableCell>₹{user.declared_income.toLocaleString()}</TableCell>
                                         <TableCell>₹{user.expected_tax.toLocaleString()}</TableCell>
                                         <TableCell>₹{user.tax_paid.toLocaleString()}</TableCell>
+                                        <TableCell>
+                                            <span className={user.risk_score >= 70 ? 'text-red-600 font-semibold' : ''}>
+                                                {user.risk_score}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell><Badge variant="secondary">{user.recommended_regime}</Badge></TableCell>
                                         <TableCell>{getStatusBadge(user.compliance_status)}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1">
@@ -189,10 +209,7 @@ const UserRegistry: React.FC = () => {
                                                     variant="ghost"
                                                     size="icon"
                                                     title="Send Notice"
-                                                    onClick={() => {
-                                                        sendNotice(user.user_id, 'reminder');
-                                                        toast.success('Notice sent to ' + user.user_id);
-                                                    }}
+                                                    onClick={() => noticeMutation.mutate({ userId: user.user_id, type: 'reminder' })}
                                                     className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                                 >
                                                     <Mail className="h-4 w-4" />
@@ -203,7 +220,7 @@ const UserRegistry: React.FC = () => {
                                 ))}
                                 {filteredUsers?.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                             No taxpayers found
                                         </TableCell>
                                     </TableRow>

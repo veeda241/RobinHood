@@ -1,176 +1,154 @@
-# RobinHood AI - Tax Compliance Intelligence System
+# RobinHood AI - Privacy-Preserving Tax Intelligence
 
 ![RobinHood AI](https://img.shields.io/badge/RobinHood-AI%20Tax%20System-667eea?style=for-the-badge)
-![Python](https://img.shields.io/badge/Python-3.8+-38ef7d?style=for-the-badge&logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-2.0+-f45c43?style=for-the-badge&logo=flask&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11+-38ef7d?style=for-the-badge&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.0-f45c43?style=for-the-badge&logo=flask&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 
-A smart tax compliance system that helps citizens pay taxes correctly and enables tax administrators to manage taxpayer records, send notices, and track compliance.
+A three-tier, intelligent & privacy-preserving tax compliance system for India's
+dual-regime (FY 2024-25) framework:
 
-## 🌟 Features
+```
+VISUAL LAYER     React + Shadcn SPA  ->  citizen optimizer & admin command center
+INTELLIGENT      Flask gateway       ->  SovereignTaxAgent (dual-regime optimizer,
+                                         marginal-swap threshold, IsolationForest risk)
+SECURE DATA      Supabase            ->  field-level Fernet encryption (HKDF-derived
+                                         per-field keys), blind-index PAN lookup,
+                                         chained tamper-evident audit ledger, RLS
+```
 
-### For Citizens
-- **Tax Calculator**: Calculate your tax liability based on the new tax regime (FY 2024-25)
-- **Slab-wise Breakdown**: See exactly how much tax applies to each income bracket
-- **Compliance Status**: Check if you're compliant or have pending dues
+## 🔐 Security posture
 
-### For Administrators
-- **Dashboard**: View all taxpayers with real-time stats
-- **Notice System**: Send reminder, warning, final, or penalty notices
-- **Payment Processing**: Record tax payments
-- **Flagging System**: Flag suspicious accounts for review
-- **CLI Tool**: Powerful command-line interface for quick operations
+- **Hybrid auth** - Supabase JWT (Bearer) for citizen/API traffic on `/api/tax/assess`;
+  signed Flask session cookie (PBKDF2-verified, rate-limited 5/min) for the admin
+  dashboard and CLI-facing routes.
+- **Encryption at the application layer** - names, PANs and asset values are stored
+  as Fernet ciphertext with a *distinct key per column* (`HKDF(master, field)`), so
+  one leaked key never exposes the whole table. PAN search works via a deterministic
+  HMAC blind index, never by decrypting.
+- **Tamper-evident audit ledger** - every mutating action appends a row whose
+  `payload_hash = SHA256(prev_hash | timestamp | action | actor | target | payload)`.
+  Rows survive subject deletion (no FK/CASCADE) and the table is append-only at the
+  DB level. `verify_chain()` (dashboard button, `/api/audit/verify`, or `python robinhood_cli.py audit verify`)
+  pinpoints the exact `log_id` where a chain was broken.
+- **Real RLS** - citizens can only select their own `taxpayers` row; the ledger and
+  notices are service-role only. No blanket `USING (true)` policies.
+- **Hardened gateway** - CORS pinned to the frontend origin, rate limiting, input
+  validation with clean 400s, and error responses that never leak internals.
+
+### ⚠️ Discovered & remediated risk (disclosed deliberately)
+Earlier revisions of this project committed a **hardcoded MySQL root password** in
+`db.py`. Because it lived in git history it must be treated as public: the MySQL
+credential was **rotated out of existence** when the data layer migrated fully to
+Supabase (the driver, `setup_database.sql` and local SQL were deleted, and secrets
+now come from a gitignored `.env`). If you forked the repo before this migration,
+rotate any password that matches the old value.
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.8+
-- MySQL Server
-- pip
-
-### Installation
-
-1. **Clone and navigate to the project**
+### 1. Configure secrets
 ```bash
-cd RobinHood
+cp .env.example .env        # fill in Supabase URL, service-role key, CRYPTO_KEY...
 ```
+Generate the Fernet master key with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+**Never put `SUPABASE_SERVICE_ROLE_KEY` in `frontend/.env`** - the frontend only
+takes the anon key (`frontend/.env.example`).
 
-2. **Install dependencies**
+Leave `SUPABASE_URL` empty to run in **offline demo mode**: an in-memory store
+mirrors the Supabase tables, eight demo taxpayers are seeded, and the full
+pipeline (encrypt -> optimize -> risk -> ledger) stays demonstrable without network.
+
+### 2. Apply the schema (real Supabase project)
+Open the Supabase SQL Editor and run [`supabase_schema.sql`](supabase_schema.sql)
+once. Seed demo taxpayers with `python setup_db.py`.
+
+### 3. Backend
 ```bash
 pip install -r requirements.txt
+python app.py               # http://localhost:5000 (debug off unless FLASK_ENV != production)
 ```
 
-3. **Set up the database**
-```bash
-mysql -u root -p < setup_database.sql
-```
-
-4. **Configure database connection** (edit `db.py` if needed)
-
-5. **Run the application**
-```bash
-python app.py
-```
-
-6. **Open in browser**: http://localhost:5000
-
-## 📊 CLI Usage
-
-The CLI provides powerful administration capabilities:
-
-```bash
-# Calculate tax for an income
-python robinhood_cli.py calculate 1200000
-
-# Compare multiple incomes
-python robinhood_cli.py compare 500000 1000000 1500000
-
-# View tax slabs
-python robinhood_cli.py slabs
-
-# List all taxpayers
-python robinhood_cli.py users
-
-# View system statistics
-python robinhood_cli.py stats
-
-# Add a new taxpayer
-python robinhood_cli.py add USER001 800000 --paid 25000
-
-# Record a payment
-python robinhood_cli.py pay USER001 50000
-
-# Send a notice
-python robinhood_cli.py notice USER001 --type warning
-
-# Send reminders to all underpaid users
-python robinhood_cli.py remind
-
-# Flag a user for review
-python robinhood_cli.py flag USER001
-```
-
-## 📋 Tax Slabs (New Regime 2024-25)
-
-| Income Range | Tax Rate |
-|-------------|----------|
-| Up to ₹3,00,000 | NIL |
-| ₹3,00,001 - ₹6,00,000 | 5% |
-| ₹6,00,001 - ₹9,00,000 | 10% |
-| ₹9,00,001 - ₹12,00,000 | 15% |
-| ₹12,00,001 - ₹15,00,000 | 20% |
-| Above ₹15,00,000 | 30% |
-
-## ⚛️ Modern React Frontend (New!)
-
-The project now features a state-of-the-art React frontend built with Vite, Tailwind CSS, and Shadcn UI.
-
-### Development Mode
-To run the frontend in development mode with hot reloading:
+### 4. Frontend
 ```bash
 cd frontend
 npm install
-npm run dev
-```
-The frontend will be available at http://localhost:8080. It is configured to proxy API requests to the Python backend on port 5000.
-
-### Building for Production
-To build the frontend and serve it via Flask:
-```bash
-cd frontend
-npm install
+npm run dev                 # http://localhost:8080, proxies /api -> :5000
+# or for production serving from Flask:
 npm run build
 ```
-Once built, the Flask server will automatically serve the React app from `frontend/dist`.
 
-## 📁 Project Structure
+**Offline demo admin login:** `admin@robinhood.gov.in` / `admin-demo-123`
+(the fallback used only when `ADMIN_PASSWORD_HASH` is unset - set it for anything real).
+
+## 🧠 Intelligence engine
+
+- Dual-regime math with 4% cess, surcharge tiers (10/15/25/30%), Section 87A
+  rebates (₹7L nil-new / ₹5L+₹12.5k-old), ₹75k/₹50k standard deductions and
+  Chapter VI-A caps (80C ₹1.5L, 80D ₹25k/₹50k senior, §24(b) ₹2L).
+- `optimize_regime_matrix()` recommends NEW/OLD with savings;
+  `marginal_swap_threshold()` bisects the exact income where the recommendation
+  flips - drawn as the crossover marker on the portal chart.
+- `IsolationForest(contamination=0.04)` over a fixed-seed synthetic baseline
+  blended with real rows; `score_samples` is linearly mapped to a documented
+  0-100 risk index. Labelled honestly: **anomaly screening**, not fraud detection.
+
+## 🖥️ Frontend routes
+
+| Route | Who | What |
+|-------|-----|------|
+| `/` | Citizen | Dual-Regime Tax Optimizer (sliders, debounced `/api/tax/optimize`, crossover `AreaChart`), quick estimator, statutory reference feed |
+| `/login` | Admin | Rate-limited PBKDF2 login -> signed session cookie |
+| `/admin` | Admin | Session-gated command center: stats, encrypted registry, ML Risk Matrix (scatter), Audit Ledger with Verify Integrity, real risk insights, collection trends |
+
+## 📁 Project structure
 
 ```
 RobinHood/
-├── app.py              # Flask backend
-├── frontend/           # Modern React frontend
-│   ├── src/            # React components & hooks
-│   ├── dist/           # Built files for production
-│   └── vite.config.ts  # Vite configuration
-├── models.py           # Database models
-├── tax_agent.py        # Tax calculation logic
-├── db.py               # Database connection
-├── robinhood_cli.py    # CLI administration tool
-├── requirements.txt    # Python dependencies
-└── setup_database.sql  # Database setup script
+├── app.py               # Flask gateway (routes + hardening)
+├── admin_auth.py        # PBKDF2 admin sessions (/api/admin/*, /api/auth/me)
+├── auth_decorators.py   # @require_supabase_auth / @require_role
+├── tax_agent.py         # SovereignTaxAgent: regimes + ML risk engine
+├── crypto.py            # per-field Fernet + PAN blind index
+├── audit.py             # chained ledger: record_event / verify_chain
+├── db.py                # Supabase client + error wrapper + demo fallback
+├── models.py            # Taxpayer/Notice over Supabase tables
+├── validation.py        # input hygiene -> clean 400s
+├── setup_db.py          # Supabase/demo seeder
+├── supabase_schema.sql  # tables, RLS, append-only triggers
+├── robinhood_cli.py     # optimize|risk|audit verify|audit trail|batch|model|admin
+└── frontend/            # React 18 + Vite + TS + Shadcn + Supabase-js
 ```
 
-## 🔧 API Endpoints
+## 🔧 API endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/users` | GET | Get all taxpayers |
-| `/api/users` | POST | Add new taxpayer |
-| `/api/users/flag/<id>` | PUT | Toggle flag on user |
-| `/api/tax/calculate` | POST | Calculate tax |
-| `/api/payments/process` | POST | Process payment |
-| `/api/notices/send/<id>` | POST | Send notice |
-| `/api/stats` | GET | Get system stats |
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/tax/calculate` | POST | public | Single-regime estimate + breakdown |
+| `/api/tax/optimize` | POST | public | Dual-regime matrix + savings + swap threshold |
+| `/api/tax/curve` | GET | public | Old-vs-new curve + crossover for the chart |
+| `/api/regulations` | GET | public | Statute-derived FY 2024-25 reference feed |
+| `/api/tax/assess` | POST | Supabase JWT | Gateway: optimize -> risk -> encrypt -> insert -> ledger |
+| `/api/admin/login` | POST | rate-limited | Admin session (PBKDF2) |
+| `/api/auth/me` | GET | - | Current principal `{mode, role}` |
+| `/api/users` (+`/flag/<id>`) | GET/POST/PUT | admin | Encrypted taxpayer registry |
+| `/api/payments/process` | POST | admin | Record payment, recompute compliance |
+| `/api/notices/send/<id>`, `/api/notices/<id>` | POST/GET | admin | Persisted tailored notices |
+| `/api/stats`, `/api/risk`, `/api/trends` | GET | admin | Aggregates + live ML insights |
+| `/api/audit/verify`, `/api/audit/trail` | GET | admin | Chain verification + ledger rows |
 
-## 🎨 Features of UI
+## 🧪 Tests
 
-- Modern dark theme with glassmorphism effects
-- Real-time statistics dashboard
-- Interactive tax calculator with breakdown
-- Notice management system
-- Responsive design for all devices
+```bash
+python -m pytest tests -q
+```
+Covers cess/surcharge/rebate edge cases, crossover monotonicity, encrypt round-trip
++ blind-index determinism, ledger tampering (5 chained events, then edit a row and
+watch `verify_chain` name the exact `log_id`), JWT/session 401/403 paths and the
+login rate limit.
 
 ## 📜 License
 
 MIT License - Feel free to use and modify!
 
-## 🎨 Tech Stack
-
-- **Backend**: Python, Flask, MySQL
-- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Lucide React
-- **UI Components**: Shadcn UI (Radix UI)
-- **Data Fetching**: TanStack Query (React Query)
-- **State Management**: React Hooks & Context
-
 ---
-
-Built with ❤️ by RobinHood AI Team
+Built with ❤️ by the RobinHood AI Team
